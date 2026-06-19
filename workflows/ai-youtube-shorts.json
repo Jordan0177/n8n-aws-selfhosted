@@ -1,0 +1,1398 @@
+{
+  "name": "Generate AI YouTube shorts with Flux, Runway, Eleven Labs and Creatomate",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "3ff268ae-8221-4626-a958-2c53867c09f6",
+      "name": "When clicking ‘Test workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -272,
+        128
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Shorts_Topic_Queue_v2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1395709390,
+          "mode": "list",
+          "cachedResultName": "Shorts_Topic_Queue_v2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit#gid=1395709390"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Status",
+              "lookupValue": "To Do"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "80e43f1c-bc1c-4ef2-b186-c81debdf1f29",
+      "name": "Grab Idea",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -48,
+        128
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "o9qfIWoqTFp0zcsw",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Generate the 3 image prompts for this topic now.",
+        "options": {
+          "systemMessage": "==You generate text-to-video prompts for a faceless space & science facts YouTube Shorts channel. Each prompt is sent to a text-to-video model (Kling) that renders literally what you describe. Every prompt MUST depict the Topic's actual subject — generic or unrelated cosmic footage is a failure.\n\nTopic: {{ $json.Topic }}\n\nFirst, silently identify the single concrete subject of the Topic (the specific planet, moon, star, or phenomenon named) and the core fact it states. All 3 prompts must clearly show THAT subject, named explicitly, and stay true to how it really looks (correct colour, surface, atmosphere, scale).\n\nProduce 3 vertical 9:16 clips that together illustrate a ~30-second narration:\n- Scene 1 (hook): a dramatic, cinematic establishing shot of the subject itself filling the frame, slow push-in or reveal. NOT a zoom from Earth.\n- Scene 2: visualise the core fact up close, readable at a glance.\n- Scene 3: a wide, awe-inducing view of the same subject that could loop back toward Scene 1.\n\nEach prompt must:\n- Explicitly name and depict the subject; stay scientifically plausible.\n- Be visually DISTINCT from the other two (different framing, camera move, palette).\n- Be ONE single line of at least 30 words; photorealistic or high-quality 3D render, cinematic lighting, vertical composition.\n- Contain NO text, NO logos, NO watermarks, NO identifiable real people.\n\nOutput EXACTLY 3 prompts, one per line, separated by a single line break. No numbering, no labels, no commentary."
+        }
+      },
+      "id": "c707c723-07e4-4c7f-b053-a74b73da4242",
+      "name": "Image Prompt Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        624,
+        128
+      ],
+      "typeVersion": 1.7
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.response_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "30f8750b-53d4-431d-9380-45331f3432f1",
+      "name": "Get Images",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2768,
+        128
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RYsij9q3HHCd8DNc",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "0cbd63d5-9143-4bdb-ab37-2ebc24365627",
+      "name": "Limit",
+      "type": "n8n-nodes-base.limit",
+      "position": [
+        176,
+        128
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.elevenlabs.io/v1/text-to-speech/{{ $json.voice_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": {{ JSON.stringify($json.script) }},\n  \"model_id\": \"eleven_multilingual_v2\",\n  \"voice_settings\": {\n    \"stability\": 0.45,\n    \"similarity_boost\": 0.80,\n    \"style\": 0.20,\n    \"use_speaker_boost\": true\n  }\n}",
+        "options": {}
+      },
+      "id": "279404e8-9804-459a-a00d-6b629960f090",
+      "name": "Generate Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        4000,
+        128
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "UTC0IsvsidUwuMau",
+          "name": "ElevenLabs"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "=voiceover_{{ $('Parse scripts (JSON)').item.json.language }}_{{ $today.format('yyyy-MM-dd') }}.mp3",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "YOUR_DRIVE_FOLDER_ID",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "fd1feaf7-c222-4656-888b-59bba929c5db",
+      "name": "Upload to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        4224,
+        128
+      ],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "haKVrlIG3sXbsQVv",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "1c2ff4e8-ed56-4bb1-8a86-5a9c8fa9613f",
+      "name": "Download Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        6480,
+        32
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Shorts_Topic_Queue_v2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1395709390,
+          "mode": "list",
+          "cachedResultName": "Shorts_Topic_Queue_v2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit#gid=1395709390"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Topic",
+              "displayName": "Topic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Title_EN",
+              "displayName": "Title_EN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "URL_EN",
+              "displayName": "URL_EN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Title_DE",
+              "displayName": "Title_DE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "URL_DE",
+              "displayName": "URL_DE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "3bc85d87-8895-4e65-bef4-ddfdd786a9b0",
+      "name": "Update Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        7728,
+        80
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "o9qfIWoqTFp0zcsw",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Upload to Drive').item.json.id }}",
+          "mode": "id"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "reader",
+            "type": "anyone"
+          }
+        },
+        "options": {}
+      },
+      "id": "d6b4753c-d668-4dea-abed-763f3a29948f",
+      "name": "Share File",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        4448,
+        128
+      ],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "haKVrlIG3sXbsQVv",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "301b30c6-abcd-4fac-a507-ca5a2aede63f",
+      "name": "Set Idea",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        400,
+        128
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "model": "={{ \"claude-haiku-4-5-20251001\" }}",
+        "options": {}
+      },
+      "id": "d4230ecb-f66e-4f6e-81e8-bd2a6df9890c",
+      "name": "Anthropic Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "position": [
+        624,
+        336
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "anthropicApi": {
+          "id": "hZYmF1ERMXSj5wvl",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/kling-video/v2.5-turbo/pro/text-to-video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.prompt) }},\n  \"duration\": \"10\",\n  \"aspect_ratio\": \"9:16\",\n  \"negative_prompt\": \"text, watermark, logo, blurry, low quality\"\n}",
+        "options": {}
+      },
+      "id": "08f0774b-e857-497c-a33e-d5b63893dbde",
+      "name": "Image Generation",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1200,
+        128
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RYsij9q3HHCd8DNc",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Write the voiceover script now.",
+        "options": {
+          "systemMessage": "==You are a short-form video scriptwriter for a faceless space & science facts YouTube channel. Write the SPOKEN VOICEOVER for one Short.\n\nTopic: {{ $json.topic }}\nLanguage: {{ $json.language }}\n\nRULES:\n- REVERSE STORYTELLING: the first sentence is a shocking payoff with a concrete number or time.\n- Then explain and build up in short, punchy sentences.\n- 70-95 words, about 28-32 seconds at speaking pace.\n- Single idea, no lists.\n- Conversational, awe-driven. No \"Did you know\" — start with the payoff.\n- Write the script entirely in the Language given above (EN = English, DE = German).\n- GRAMMAR & GENDER: use correct, consistent grammatical gender and articles for the subject throughout the whole script. Decide the subject's gender once and NEVER switch it. In German this is critical — e.g. Venus is feminine, so ALWAYS \"die Venus\", never \"der Venus\"; keep every article, pronoun and adjective ending agreeing with that gender. Re-read the script before output and fix any article or pronoun that disagrees.\n- SPELL OUT EVERYTHING THE VOICE READS: write all numbers, dates, times, ordinals, units and symbols as full words in the target language so text-to-speech pronounces them correctly. Never output digits or symbols.\n  EN examples: \"243\" -> \"two hundred forty-three\"; \"1,400°C\" -> \"one thousand four hundred degrees Celsius\"; \"5th\" -> \"fifth\"; \"24h\" -> \"twenty-four hours\".\n  DE examples: \"243 Tage\" -> \"zweihundertdreiundvierzig Tage\"; \"1.400 °C\" -> \"eintausendvierhundert Grad Celsius\"; \"5.\" -> \"fünfte\"; spell out weekdays and units fully.\n- SEAMLESS LOOP: the final sentence must connect directly back into the first sentence, so that when the Short repeats, the last words flow naturally into the opening words with no bump. The ending should echo or set up the exact hook the video opens on. Read the first and last sentence back to back to confirm they form a smooth loop.\n\nOutput ONLY a JSON object, nothing else:\n{\n  \"script\": \"<voiceover in the Language, following every rule above>\",\n  \"hook_text\": \"<3-6 word on-screen hook in the Language, ALL-CAPS friendly, capturing the opening payoff; no ending punctuation>\",\n  \"title\": \"<YouTube Shorts title in the Language, max 80 chars, curiosity-driven, no clickbait lies, 1-2 fitting emoji allowed>\",\n  \"description\": \"<2-3 sentence YouTube description in the Language, ending with 3-5 relevant hashtags including #shorts>\",\n  \"fact_check_flags\": [\"<EVERY uncertain claim — including causal/explanatory claims, not just numbers. When in doubt, flag it.>\"]\n}"
+        }
+      },
+      "id": "9e54a754-9436-4ca4-86aa-6fa734f0725d",
+      "name": "Audio Prompt Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        3424,
+        128
+      ],
+      "typeVersion": 1.7
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "video.url",
+              "renameField": true,
+              "outputFieldName": "clips"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2944,
+        128
+      ],
+      "id": "661338d9-b107-4240-a820-a2439c7a365c",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "={{ \"claude-haiku-4-5-20251001\" }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.5,
+      "position": [
+        3216,
+        352
+      ],
+      "id": "c8e3bc33-fa2c-430e-b39d-a8143d9c411f",
+      "name": "Anthropic Chat Model1",
+      "credentials": {
+        "anthropicApi": {
+          "id": "hZYmF1ERMXSj5wvl",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.json2video.com/v2/movies",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"resolution\": \"custom\",\n  \"width\": 1080,\n  \"height\": 1920,\n  \"quality\": \"high\",\n  \"scenes\": [\n    {\n      \"elements\": [\n        {\n          \"type\": \"video\",\n          \"src\": \"{{ $('Aggregate').first().json.clips[0] }}\",\n          \"start\": 0,\n          \"duration\": 10,\n          \"resize\": \"cover\",\n          \"keyframes\": [\n            { \"time\": 0,  \"zoom\": 0,   \"easing\": \"linear\" },\n            { \"time\": 5,  \"zoom\": 2,   \"easing\": \"ease-out-cubic\" },\n            { \"time\": 10, \"zoom\": 3.5, \"easing\": \"ease-in-out-sine\" }\n          ]\n        },\n        {\n          \"type\": \"video\",\n          \"src\": \"{{ $('Aggregate').first().json.clips[1] }}\",\n          \"start\": 10,\n          \"duration\": 10,\n          \"resize\": \"cover\",\n          \"keyframes\": [\n            { \"time\": 0,  \"zoom\": 1,   \"easing\": \"linear\" },\n            { \"time\": 2,  \"zoom\": 3,   \"easing\": \"ease-out-quint\" },\n            { \"time\": 6,  \"zoom\": 1.5, \"easing\": \"ease-in-out-sine\" },\n            { \"time\": 10, \"zoom\": 3.5, \"easing\": \"linear\" }\n          ]\n        },\n        {\n          \"type\": \"video\",\n          \"src\": \"{{ $('Aggregate').first().json.clips[2] }}\",\n          \"start\": 20,\n          \"duration\": -2,\n          \"resize\": \"cover\",\n          \"keyframes\": [\n            { \"time\": \"0%\",   \"zoom\": 3.5, \"easing\": \"linear\" },\n            { \"time\": \"60%\",  \"zoom\": 1,   \"easing\": \"ease-in-out-cubic\" },\n            { \"time\": \"100%\", \"zoom\": 0,   \"easing\": \"linear\" }\n          ]\n        },\n        {\n          \"type\": \"audio\",\n          \"src\": \"{{ $('Upload to Drive').item.json.webContentLink }}\"\n        },\n        {\n          \"type\": \"text\",\n          \"text\": \"{{ $('Parse scripts (JSON)').item.json.hook_text }}\",\n          \"start\": 0,\n          \"duration\": 3,\n          \"fade-in\": 0.3,\n          \"fade-out\": 0.3,\n          \"settings\": {\n            \"font-family\": \"Oswald\",\n            \"font-size\": \"92px\",\n            \"font-weight\": \"700\",\n            \"font-color\": \"#FFFFFF\",\n            \"text-shadow\": \"0px 4px 14px rgba(0,0,0,0.9)\",\n            \"text-align\": \"center\",\n            \"text-transform\": \"uppercase\",\n            \"vertical-position\": \"top\",\n            \"horizontal-position\": \"center\"\n          }\n        }\n      ]\n    }\n  ],\n  \"elements\": [\n    { \"type\": \"audio\", \"src\": \"https://drive.google.com/uc?export=download&id=YOUR_DRIVE_AUDIO_FILE_ID\", \"volume\": 0.25, \"duration\": -2 },\n    { \"type\": \"subtitles\", \"src\": \"{{ $('Upload to Drive').item.json.webContentLink }}\", \"settings\": { \"style\": \"classic-progressive\", \"font-family\": \"Oswald\", \"font-size\": 64, \"word-color\": \"#FFFFFF\", \"line-color\": \"#FFFFFF\", \"outline-color\": \"#000000\", \"outline-width\": 6, \"position\": \"center-center\" } }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4672,
+        128
+      ],
+      "id": "7899a393-fee0-4c5d-8c3a-fc4b0d389e24",
+      "name": "Render Video",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "9O6AANTTnU8tZkud",
+          "name": "JSON2Video"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "you@example.com",
+        "subject": "=QC: {{ $('Grab Idea').first().json.Topic }}",
+        "message": "=Topic: {{ $('Grab Idea').first().json.Topic }}\n\n🇬🇧 English video: {{ $json.url_en }}\n\n🇩🇪 German video: {{ $json.url_de }}\n\nFact-check flags EN: {{ $('Parse scripts (JSON)').all()[0].json.fact_check_flags.join('; ') }}\nFact-check flags DE: {{ $('Parse scripts (JSON)').all()[1].json.fact_check_flags.join('; ') }}\n\nApprove to publish both.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        6064,
+        32
+      ],
+      "id": "cffe0e20-b8a1-4767-a4e0-c4fe23eb6964",
+      "name": "Send message and wait for response",
+      "webhookId": "9a7304bd-3537-42a4-8d30-87bde0f38157",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VNhdK3AmrceVLz5H",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.json2video.com/v2/movies?project={{ $json.project }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        5328,
+        48
+      ],
+      "id": "cb777569-4563-466c-8e2f-491247d55bde",
+      "name": "Get Render Result",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "9O6AANTTnU8tZkud",
+          "name": "JSON2Video"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4896,
+        128
+      ],
+      "id": "888f78c3-a8cb-41c0-89c4-9678c918f85b",
+      "name": "Wait 20s (render)",
+      "webhookId": "66c5554c-ea56-43b2-ba9f-60303542fe59"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "87f97065-2939-4603-9b2e-7462953e6f67",
+              "leftValue": "={{ $json.done }}",
+              "rightValue": "done",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        5792,
+        48
+      ],
+      "id": "99bb3967-e420-45df-87c5-6b4335454f0e",
+      "name": "Render done?"
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "id": "46200faa-c23d-4103-9b98-ddb851d7abf4",
+      "name": "Wait 20s (clips)",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        1424,
+        128
+      ],
+      "webhookId": "ffdc5132-c0fe-44f6-af2b-4b3bb8894153",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Image Generation').all().map(i => ({\n     json: {\n       status_url: i.json.status_url,\n       response_url: i.json.response_url,\n     }\n   }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        48
+      ],
+      "id": "c892e2df-9be4-4108-9b3a-fa99ce145a5e",
+      "name": "Fan out status URLs"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.status_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1872,
+        48
+      ],
+      "id": "517f4a82-1005-4aa1-850a-5ce023d3f4f9",
+      "name": "Check clip status",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RYsij9q3HHCd8DNc",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const all = $input.all();\n   const statuses = all.map(i => i.json.status);\n\n   if ($runIndex > 40) {\n     throw new Error(`Clips not finished after ${$runIndex} polls (~13 min). Statuses: ${statuses.join(', ')}`);\n   }\n\n   const done = statuses.every(s => s === 'COMPLETED');\n   return [{ json: { done, statuses } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        48
+      ],
+      "id": "c84ccda1-4c19-47f4-9199-2279fb56129c",
+      "name": "All clips done?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0d40b492-d29e-45b1-9338-82f924e04421",
+              "leftValue": "={{ $json.done }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2320,
+        128
+      ],
+      "id": "2cc2fcb2-9cd3-42c8-a885-45073c7f8dd6",
+      "name": "Clips ready?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Image Generation').all().map(i => ({\n     json: { response_url: i.json.response_url }\n   }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        128
+      ],
+      "id": "d534bf13-6ea0-4001-b682-07b01d265edf",
+      "name": "Fan out response URLs"
+    },
+    {
+      "parameters": {
+        "jsCode": "const topic = $('Grab Idea').first().json.Topic;\nreturn [\n  { json: { language: 'EN', voice_id: 'AtEtJxZcH8TRn1nNhXol', topic } },\n  { json: { language: 'DE', voice_id: 'cdzqtV2ttnDyTZnMZ5UU', topic } },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3168,
+        128
+      ],
+      "id": "9c8c9f18-2d61-4cab-be70-2401d9878c06",
+      "name": "Language fan-out"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => {\n  let raw = (item.json.output || '').toString();\n  raw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n\n  // Keep only the outermost JSON object (drops any prose before/after it)\n  const first = raw.indexOf('{');\n  const last = raw.lastIndexOf('}');\n  if (first === -1 || last === -1 || last < first) {\n    throw new Error('No JSON object found in model output: ' + raw.slice(0, 300));\n  }\n  raw = raw.slice(first, last + 1);\n\n  let parsed;\n  try {\n    parsed = JSON.parse(raw);\n  } catch (e) {\n    throw new Error('JSON parse failed: ' + e.message + ' | raw: ' + raw.slice(0, 500));\n  }\n\n  const meta = $('Language fan-out').all()[i].json;\n  return {\n    json: {\n      script: parsed.script,\n      hook_text: parsed.hook_text || parsed.title || '',\n      title: parsed.title || '',\n      description: parsed.description || '',\n      fact_check_flags: parsed.fact_check_flags || [],\n      language: meta.language,\n      voice_id: meta.voice_id,\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3776,
+        128
+      ],
+      "id": "c246be12-e72b-49fd-aa18-c5ec9095d26f",
+      "name": "Parse scripts (JSON)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.output;\nconst prompts = text\n  .split(/\\n+/)                      // any number of newlines\n  .map(p => p.trim())\n  .filter(p => p.length > 20)       // drops numbering, headers, stray lines\n  .slice(0, 3);\n\nif (prompts.length < 3) {\n  throw new Error(`Expected 3 prompts, got ${prompts.length}. Raw output: ${text.slice(0, 200)}`);\n}\n\nreturn prompts.map(p => ({ json: { prompt: p } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        128
+      ],
+      "id": "3f604e3a-8fe0-485e-ba2c-a9a1ad13f443",
+      "name": "Split image prompts"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Render Video').all().map(i => ({ json: { project: i.json.project } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5104,
+        128
+      ],
+      "id": "03c8b9b1-bbb4-4417-a5b6-48c227601f99",
+      "name": "Fan out render projects"
+    },
+    {
+      "parameters": {
+        "jsCode": "const movies = $input.all().map(i => i.json.movie);\n\nconst failed = movies.find(m => m && m.status === 'error');\nif (failed) {\n  throw new Error('Render failed: ' + JSON.stringify(failed));\n}\n\nif ($runIndex > 45) {\n  throw new Error(`Renders not finished after ${$runIndex} polls (~15 min). Statuses: ${movies.map(m => m?.status).join(', ')}`);\n}\n\nconst done = movies.every(m => m && m.status === 'done');\nreturn [{ json: {\n  done,\n  url_en: movies[0]?.url ?? '',\n  url_de: movies[1]?.url ?? ''\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5536,
+        48
+      ],
+      "id": "4756e064-5a3b-4275-a8c4-6a91d22d0f0b",
+      "name": "All renders done?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const renders = $('All renders done?').first().json;\nconst meta = $('Parse scripts (JSON)').all().map(i => i.json);\nreturn [\n  { json: { language: 'EN', url: renders.url_en, title: meta[0].title, description: meta[0].description } },\n  { json: { language: 'DE', url: renders.url_de, title: meta[1].title, description: meta[1].description } },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6272,
+        32
+      ],
+      "id": "af6f7eee-a177-4c1a-94bc-4390bb43caf6",
+      "name": "Fan out approved videos"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Fan out approved videos').item.json.language }}",
+                    "rightValue": "EN",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6914d741-83d8-4b84-a4f4-bab6eeb2785f"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7cad7292-ad29-4e58-ad25-350c4a21cd40",
+                    "leftValue": "={{ $('Fan out approved videos').item.json.language }}",
+                    "rightValue": "DE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        6688,
+        32
+      ],
+      "id": "824ad56a-41b6-4182-8ad2-1c9ed795f162",
+      "name": "Which channel?"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('Fan out approved videos').item.json.title }}",
+        "regionCode": "DE",
+        "categoryId": "28",
+        "options": {
+          "description": "={{ $('Fan out approved videos').item.json.description }}",
+          "privacyStatus": "unlisted",
+          "selfDeclaredMadeForKids": false
+        }
+      },
+      "id": "753b20cf-cdc6-4607-9b22-45f246176197",
+      "name": "Upload EN (MyChannelEN)",
+      "type": "n8n-nodes-base.youTube",
+      "position": [
+        6960,
+        16
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "UtJywdH8MlBOK5R9",
+          "name": "YouTube MyChannelEN"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('Fan out approved videos').item.json.title }}",
+        "regionCode": "DE",
+        "categoryId": "28",
+        "options": {
+          "description": "={{ $('Fan out approved videos').item.json.description }}",
+          "privacyStatus": "unlisted",
+          "selfDeclaredMadeForKids": false
+        }
+      },
+      "id": "b1a17b3b-f96f-4536-872b-8fee1661ac1f",
+      "name": "Upload DE (MyChannelDE)",
+      "type": "n8n-nodes-base.youTube",
+      "position": [
+        6960,
+        256
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "3mJn3v4ZFvx2Dh77",
+          "name": "YouTube MyChannelDE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const en = $('Upload EN (MyChannelEN)').first().json;\nconst de = $('Upload DE (MyChannelDE)').first().json;\nconst meta = $('Fan out approved videos').all().map(i => i.json);\nconst videoUrl = v => 'https://www.youtube.com/shorts/' + (v.uploadId || v.id);\nreturn [{ json: {\n  ID: $('Grab Idea').first().json.ID,\n  Status: 'Done',\n  Title_EN: meta[0].title,\n  URL_EN: videoUrl(en),\n  Title_DE: meta[1].title,\n  URL_DE: videoUrl(de),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7472,
+        112
+      ],
+      "id": "0c5366bf-57e5-4fe2-8ed6-840125fc1ad6",
+      "name": "Build sheet row"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        7200,
+        112
+      ],
+      "id": "98a1cd4f-c54d-4b42-bfd7-feff745d8f18",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Set Idea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Idea": {
+      "main": [
+        [
+          {
+            "node": "Image Prompt Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab Idea": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Images": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share File": {
+      "main": [
+        [
+          {
+            "node": "Render Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Video": {
+      "main": [
+        [
+          {
+            "node": "Which channel?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Audio": {
+      "main": [
+        [
+          {
+            "node": "Upload to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Drive": {
+      "main": [
+        [
+          {
+            "node": "Share File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Generation": {
+      "main": [
+        [
+          {
+            "node": "Wait 20s (clips)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audio Prompt Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse scripts (JSON)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Prompt Agent": {
+      "main": [
+        [
+          {
+            "node": "Split image prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Image Prompt Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Grab Idea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Language fan-out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Audio Prompt Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Video": {
+      "main": [
+        [
+          {
+            "node": "Wait 20s (render)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Render Result": {
+      "main": [
+        [
+          {
+            "node": "All renders done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 20s (render)": {
+      "main": [
+        [
+          {
+            "node": "Fan out render projects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render done?": {
+      "main": [
+        [
+          {
+            "node": "Send message and wait for response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 20s (render)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 20s (clips)": {
+      "main": [
+        [
+          {
+            "node": "Fan out status URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan out status URLs": {
+      "main": [
+        [
+          {
+            "node": "Check clip status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check clip status": {
+      "main": [
+        [
+          {
+            "node": "All clips done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All clips done?": {
+      "main": [
+        [
+          {
+            "node": "Clips ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clips ready?": {
+      "main": [
+        [
+          {
+            "node": "Fan out response URLs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 20s (clips)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan out response URLs": {
+      "main": [
+        [
+          {
+            "node": "Get Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Language fan-out": {
+      "main": [
+        [
+          {
+            "node": "Audio Prompt Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse scripts (JSON)": {
+      "main": [
+        [
+          {
+            "node": "Generate Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split image prompts": {
+      "main": [
+        [
+          {
+            "node": "Image Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan out render projects": {
+      "main": [
+        [
+          {
+            "node": "Get Render Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All renders done?": {
+      "main": [
+        [
+          {
+            "node": "Render done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message and wait for response": {
+      "main": [
+        [
+          {
+            "node": "Fan out approved videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan out approved videos": {
+      "main": [
+        [
+          {
+            "node": "Download Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload EN (MyChannelEN)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which channel?": {
+      "main": [
+        [
+          {
+            "node": "Upload EN (MyChannelEN)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Upload DE (MyChannelDE)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build sheet row": {
+      "main": [
+        [
+          {
+            "node": "Update Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload DE (MyChannelDE)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Build sheet row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "P4YTnzUBue2vQegK",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "5b6a683e-dbaf-4454-a5ee-44840371a0eb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
+  },
+  "nodeGroups": [],
+  "id": "9I1kGc7HcnCequKl",
+  "tags": []
+}

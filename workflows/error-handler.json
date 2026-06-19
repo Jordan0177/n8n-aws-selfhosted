@@ -1,0 +1,66 @@
+{
+  "name": "Error handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b1e8ed74-164f-4fb3-b4f4-692147aa2220",
+      "name": "On any workflow failure"
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "=❌ Workflow failed: {{ $json.workflow.name }} — {{ $json.execution.error.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "82430385-f77f-4962-8bbe-4a6cf5615c37",
+      "name": "Notify failure to Discord",
+      "webhookId": "72ef3556-7401-4cbf-a751-643886fddc3f",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "26hpDVbkCq5iAo7a",
+          "name": "Discord Webhook account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On any workflow failure": {
+      "main": [
+        [
+          {
+            "node": "Notify failure to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "753d56d0-6657-4941-9a6d-10f799819135",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
+  },
+  "nodeGroups": [],
+  "id": "P4YTnzUBue2vQegK",
+  "tags": []
+}

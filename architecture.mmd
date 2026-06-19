@@ -1,0 +1,29 @@
+flowchart TB
+    user([User / Browser])
+    duck[DuckDNS<br/>dynamic DNS]
+
+    subgraph aws["AWS eu-central-1 · EC2 t3.medium"]
+        subgraph k3s["k3s cluster"]
+            caddy["Caddy<br/>reverse proxy + auto-HTTPS"]
+            main["n8n main<br/>(UI, API, triggers)"]
+            w1["n8n worker 1"]
+            w2["n8n worker 2"]
+            redis[("Redis<br/>queue broker")]
+            pg[("PostgreSQL<br/>execution data")]
+        end
+    end
+
+    le[Let's Encrypt]
+    ext["External APIs<br/>(OpenAI, webhooks, etc.)"]
+
+    user -->|HTTPS| duck --> caddy
+    caddy <-->|ACME| le
+    caddy --> main
+    main -->|enqueue jobs| redis
+    redis -->|dispatch| w1
+    redis -->|dispatch| w2
+    main --> pg
+    w1 --> pg
+    w2 --> pg
+    w1 --> ext
+    w2 --> ext

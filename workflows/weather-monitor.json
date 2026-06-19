@@ -1,0 +1,257 @@
+{
+  "name": "Weather monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "weather_log",
+          "mode": "list",
+          "cachedResultName": "weather_log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "temperature": "={{ $json.current.temperature_2m }}",
+            "wind_speed": "={{ $json.current.wind_speed_10m }}",
+            "city": "={{ $('Define cities').item.json.city }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "temperature",
+              "displayName": "temperature",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "wind_speed",
+              "displayName": "wind_speed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recorded_at",
+              "displayName": "recorded_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        512,
+        240
+      ],
+      "id": "45ae9242-8f54-45bd-b760-b85a0ea59974",
+      "name": "Log to postgres",
+      "credentials": {
+        "postgres": {
+          "id": "PIUbJtiwa1HsKwPY",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -208,
+        0
+      ],
+      "id": "877a8af4-a551-43b1-9423-261de5ca91e3",
+      "name": "Every hour"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n     { json: { city: 'Lüneburg', lat: 53.25, lon: 10.41 } },\n     { json: { city: 'Berlin',   lat: 52.52, lon: 13.41 } },\n   ];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        0
+      ],
+      "id": "be2da575-43cf-4867-a59d-fe1a67590974",
+      "name": "Define cities"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.open-meteo.com/v1/forecast?latitude={{ $json.lat }}&longitude={{ $json.lon }}&current=temperature_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=2&timezone=Europe%2FBerlin",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        256,
+        0
+      ],
+      "id": "fbb7ddcb-965c-45b2-b70d-5e54a57fd343",
+      "name": "Fetch weather (Open-Meteo)"
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $json.status === 'ALERT' ? '⚠️ ALERT' : '✅ Cleared' }} — {{ $json.city }}: {{ $json.temp }}°C, wind {{ $json.wind }} km/h — tomorrow {{ $json.daily.temperature_2m_min[1] }}–{{ $json.daily.temperature_2m_max[1] }}°C, rain {{ $json.daily.precipitation_probability_max[1] }}%",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "id": "a6fbca50-ce77-47ba-a749-389f1e77091b",
+      "name": "Send alert to Discord",
+      "webhookId": "7a33ada8-518c-4568-be48-78fcb632d9bb",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "26hpDVbkCq5iAo7a",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\n   staticData.alerts = staticData.alerts || {};\n   const results = [];\n   const items = $input.all();\n   for (let i = 0; i < items.length; i++) {\n     const city = $('Define cities').itemMatching(i).json.city;\n     const temp = items[i].json.current.temperature_2m;\n     const wind = items[i].json.current.wind_speed_10m;\n     const isAlert = wind > 30 || temp < 0;   // real thresholds\n     const wasAlert = staticData.alerts[city] || false;\n     if (isAlert !== wasAlert) {\n       results.push({ json: { city, temp, wind,\n         status: isAlert ? 'ALERT' : 'CLEARED',\n         daily: items[i].json.daily } });\n     }\n     staticData.alerts[city] = isAlert;\n   }\n   return results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        0
+      ],
+      "id": "a92e9036-b29d-4cb0-8548-1ebf6b9b5575",
+      "name": "Alert state filter"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Log to postgres": {
+      "main": [
+        []
+      ]
+    },
+    "Every hour": {
+      "main": [
+        [
+          {
+            "node": "Define cities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Define cities": {
+      "main": [
+        [
+          {
+            "node": "Fetch weather (Open-Meteo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch weather (Open-Meteo)": {
+      "main": [
+        [
+          {
+            "node": "Log to postgres",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Alert state filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send alert to Discord": {
+      "main": [
+        []
+      ]
+    },
+    "Alert state filter": {
+      "main": [
+        [
+          {
+            "node": "Send alert to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "P4YTnzUBue2vQegK",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "33184acd-d575-484c-911c-ab76f21bde6d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
+  },
+  "nodeGroups": [],
+  "id": "Ww8rw6GhOqDIyJCS",
+  "tags": []
+}

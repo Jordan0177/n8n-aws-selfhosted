@@ -1,0 +1,22 @@
+# Secrets / environment — never commit these
+.env
+.env.*
+*.local
+secrets/
+credentials/
+*.pem
+*.key
+id_rsa*
+
+# n8n local data
+.n8n/
+n8n_data/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node
+node_modules/

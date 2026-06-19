@@ -1,0 +1,200 @@
+{
+  "name": "Weather Analyst (AI agent)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "10f5892e-e2cb-484c-af4a-85b7da65dd98",
+      "name": "Daily at 07:00"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Write today's weather briefing for Lüneburg and Berlin. Use your tools: fetch the live weather, and query the history database to compare today with the recent average. Keep it under 100 words, friendly, German cities deserve °C. End with one practical recommendation.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        288,
+        0
+      ],
+      "id": "c333a7f0-c57b-4c48-8de4-d4fe45524f75",
+      "name": "Weather analyst agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        176,
+        224
+      ],
+      "id": "113cf27a-a1b5-4105-8649-c6c30aa8a4f5",
+      "name": "GPT-4o-mini",
+      "credentials": {
+        "openAiApi": {
+          "id": "P7lz4Vz19gNQV2Vx",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Returns the 7-day average temperature and wind speed per city from the weather history database.",
+        "url": "=https://api.open-meteo.com/v1/forecast?latitude={{ $fromAI('latitude') }}&longitude={{ $fromAI('longitude') }}&current=temperature_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=2&timezone=Europe%2FBerlin",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        352,
+        224
+      ],
+      "id": "ec8a6858-6c87-46b9-9cf2-d40f8c03b8e1",
+      "name": "Tool: live weather (Open-Meteo)"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Returns the 7-day average temperature and wind speed per city from the weather history database.",
+        "operation": "executeQuery",
+        "query": "SELECT city, round(avg(temperature),1) AS avg_temp_c, round(avg(wind_speed),1) AS avg_wind_kmh, count(*) AS readings\n   FROM weather_log\n   WHERE recorded_at > now() - interval '7 days'\n   GROUP BY city;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        528,
+        224
+      ],
+      "id": "1c75d26f-51e8-4fd3-9f1e-d3c1f0d29b85",
+      "name": "Tool: 7-day history (Postgres)",
+      "credentials": {
+        "postgres": {
+          "id": "PIUbJtiwa1HsKwPY",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        688,
+        0
+      ],
+      "id": "4185bcbc-a51f-41d6-82fd-2884393c2c74",
+      "name": "Post briefing to Discord",
+      "webhookId": "8777a915-0b07-4d4b-8dca-5a5ab67ae350",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "26hpDVbkCq5iAo7a",
+          "name": "Discord Webhook account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily at 07:00": {
+      "main": [
+        [
+          {
+            "node": "Weather analyst agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weather analyst agent": {
+      "main": [
+        [
+          {
+            "node": "Post briefing to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT-4o-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Weather analyst agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: live weather (Open-Meteo)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Weather analyst agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: 7-day history (Postgres)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Weather analyst agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "P4YTnzUBue2vQegK",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "71187591-d310-4c10-beae-1fc5938a1e67",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
+  },
+  "nodeGroups": [],
+  "id": "hTwNW2Kjd4VOL1jF",
+  "tags": []
+}
